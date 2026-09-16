@@ -14,6 +14,13 @@
       "env": {
         "WA_ALLOWLIST_PIN": ""
       }
+    },
+    "buffer": {
+      "type": "http",
+      "url": "https://mcp.buffer.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${BUFFER_API_KEY_DM}"
+      }
     }
   }
 }

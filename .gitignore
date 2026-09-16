@@ -124,3 +124,6 @@ __pycache__/
 
 # Uploads temporários da rota /api/upload (runtime)
 backend-sdk-claude/uploads/
+
+# material de trabalho (docs de cliente, decks, contratos) — nunca versionar
+work/
