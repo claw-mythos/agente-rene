@@ -3,6 +3,9 @@ name: registrar-fechamento-crm
 description: Detecta quando um contrato foi fechado numa conversa de grupo do WhatsApp e, com confirmação explícita, registra documentos/informações no card do cliente no Twenty CRM. Use quando perceber sinais de fechamento de contrato num grupo (linguagem tipo "fechado", "vamos assinar", confirmação de valores) ou quando alguém digitar explicitamente "/fechei-contrato".
 ---
 
+> **PAUSADA desde 29/09/2026.** O CRM passou a ser o SistemaLA e o René só consulta (decisão do Julio). Não grave nada: se detectar um fechamento, avise no grupo que o registro deve ser feito no SistemaLA (lucroativo.online) e, se ajudar, traga os dados da oportunidade com a ferramenta sistemala.
+
+
 # Registrar fechamento de contrato no CRM (grupo)
 
 Este skill só roda no perfil de grupo (`crm-grupo`, MCP completo do Twenty). Objetivo:

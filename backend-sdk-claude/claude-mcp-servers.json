@@ -14,7 +14,9 @@
     "google-workspace": {
       "type": "stdio",
       "command": "/home/hermes/.local/share/workspace-mcp-venv/bin/workspace-mcp",
-      "args": ["--single-user"],
+      "args": [
+        "--single-user"
+      ],
       "env": {
         "WORKSPACE_MCP_CREDENTIALS_DIR": "/home/hermes/.config/workspace-mcp/credentials",
         "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
@@ -23,11 +25,16 @@
         "OAUTHLIB_INSECURE_TRANSPORT": "1"
       }
     },
-    "twenty": {
-      "type": "http",
-      "url": "https://crm.meulucroativo.seg.br/mcp",
-      "headers": {
-        "Authorization": "Bearer ${TWENTY_API_KEY}"
+    "sistemala": {
+      "type": "stdio",
+      "command": "/home/hermes/opt/node/bin/node",
+      "args": [
+        "/home/hermes/agente-rene/backend-sdk-claude/services/mcp/sistemala-mcp.js"
+      ],
+      "env": {
+        "SISTEMALA_URL": "${SISTEMALA_URL}",
+        "SISTEMALA_API_KEY": "${SISTEMALA_API_KEY}",
+        "SISTEMALA_FINANCEIRO": "1"
       }
     }
   }

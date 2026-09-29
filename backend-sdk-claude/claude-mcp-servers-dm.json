@@ -14,13 +14,6 @@
         "OAUTHLIB_INSECURE_TRANSPORT": "1"
       }
     },
-    "twenty": {
-      "type": "http",
-      "url": "https://crm.meulucroativo.seg.br/mcp",
-      "headers": {
-        "Authorization": "Bearer ${TWENTY_API_KEY_DM}"
-      }
-    },
     "readai": {
       "type": "http",
       "url": "https://api.read.ai/mcp"
@@ -41,6 +34,17 @@
       "url": "https://mcp.buffer.com/mcp",
       "headers": {
         "Authorization": "Bearer ${BUFFER_API_KEY_DM}"
+      }
+    },
+    "sistemala": {
+      "type": "stdio",
+      "command": "/home/hermes/opt/node/bin/node",
+      "args": [
+        "/home/hermes/agente-rene/backend-sdk-claude/services/mcp/sistemala-mcp.js"
+      ],
+      "env": {
+        "SISTEMALA_URL": "${SISTEMALA_URL}",
+        "SISTEMALA_API_KEY": "${SISTEMALA_API_KEY_DM}"
       }
     }
   }
