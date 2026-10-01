@@ -42,6 +42,13 @@ const RENE_CWD = process.env.RENE_CWD
 // próprio CRM — o arquivo de MCP sozinho não é barreira de segurança real,
 // só decide quais tools ficam visíveis.
 const RENE_DM_MODEL_ID = 'rene-dm';
+// Modelo "rene-admin" (30/09/2026): o do perfil admin-full do Hermes, que só
+// recebe conversas roteadas pelo identificador real do WhatsApp (Dr. Lucas e
+// Lucrecia). Mesmo MCP do rene-dm. Dentro dele, a conversa do Dr. Lucas leva
+// RENE_ACESSO_TOTAL=1 e a trava (rene-trava) libera e só registra. Fora deste
+// modelo o nome no prompt nunca dá acesso total (nome de WhatsApp se troca).
+const RENE_ADMIN_MODEL_ID = 'rene-admin';
+const DONO_ACESSO_TOTAL = /^\*\*User:\*\*\s+"Lucas dos Santos"\s*$/m;
 const RENE_DM_MCP_CONFIG = path.join(__dirname, '..', 'claude-mcp-servers-dm.json');
 
 // Diretiva que transforma o Claude Code (agêntico) num assistente de chat direto.
@@ -107,6 +114,7 @@ function mount(app) {
         { id: MODEL_ID, object: 'model', created: 0, owned_by: 'anthropic-claude-code' },
         { id: RENE_MODEL_ID, object: 'model', created: 0, owned_by: 'anthropic-claude-code' },
         { id: RENE_DM_MODEL_ID, object: 'model', created: 0, owned_by: 'anthropic-claude-code' },
+        { id: RENE_ADMIN_MODEL_ID, object: 'model', created: 0, owned_by: 'anthropic-claude-code' },
       ],
     });
   });
@@ -128,9 +136,11 @@ function mount(app) {
     // restrito (sem financeiro). Qualquer outro valor → chat puro.
     const reqModel = String(body.model || '').toLowerCase();
     const agenticFull = reqModel === RENE_MODEL_ID;
-    const agenticDm = reqModel === RENE_DM_MODEL_ID;
+    const agenticAdmin = reqModel === RENE_ADMIN_MODEL_ID;
+    const agenticDm = reqModel === RENE_DM_MODEL_ID || agenticAdmin;
+    const acessoTotal = agenticAdmin && DONO_ACESSO_TOTAL.test(appendSystemPrompt || '');
     const agentic = agenticFull || agenticDm;
-    const respModel = agenticFull ? RENE_MODEL_ID : agenticDm ? RENE_DM_MODEL_ID : MODEL_ID;
+    const respModel = agenticFull ? RENE_MODEL_ID : agenticAdmin ? RENE_ADMIN_MODEL_ID : agenticDm ? RENE_DM_MODEL_ID : MODEL_ID;
 
     // Chat: cwd neutro + diretiva → responde direto sem virar agente de código
     // (maxTurns com folga é só rede de segurança; a diretiva deve manter 1 turno).
@@ -147,6 +157,7 @@ function mount(app) {
         ? appendSystemPrompt
         : [CHAT_DIRECTIVE, appendSystemPrompt].filter(Boolean).join('\n\n'),
       ...(agenticDm ? { mcpConfigPath: RENE_DM_MCP_CONFIG } : {}),
+      ...(acessoTotal ? { env: { RENE_ACESSO_TOTAL: '1', RENE_SOLICITANTE: 'Lucas dos Santos (perfil admin-full, 109693481525364@lid)' } } : {}),
     };
 
     // DEBUG (CLAUDECODE_DEBUG=1): dump do prompt/options pra diagnosticar exit 1.

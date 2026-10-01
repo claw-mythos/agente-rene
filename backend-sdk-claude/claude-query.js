@@ -141,7 +141,8 @@ async function* _spawnQuery({ prompt, options }) {
   let done = false;
 
   const child = spawn(NODE_BIN, args, {
-    env: { ...process.env, PATH: process.env.PATH },
+    // options.env: marcas por chamada (ex.: RENE_ACESSO_TOTAL para a trava, 30/09/2026).
+    env: { ...process.env, PATH: process.env.PATH, ...(options.env || {}) },
     stdio: ['pipe', 'pipe', 'pipe'],
     cwd: options.cwd || process.cwd(),
   });
