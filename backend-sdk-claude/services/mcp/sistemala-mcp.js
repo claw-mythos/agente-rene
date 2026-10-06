@@ -10,6 +10,9 @@
 //   SISTEMALA_URL         base da API (padrão https://lucroativo.online/api/agentes)
 //   SISTEMALA_API_KEY     chave de API (escopos definidos no SistemaLA)
 //   SISTEMALA_FINANCEIRO  "1" registra a ferramenta de faturas (só no grupo)
+//   RENE_ACESSO_TOTAL     "1" (só na conversa do Dr. Lucas, posto pelo backend)
+//                         registra historico_leads — a tela equivalente no
+//                         SistemaLA é restrita a Dr. Lucas, Julio e Tiago
 // A permissão real fica no SistemaLA: a chave da conversa individual não tem
 // o escopo financeiro, então a API recusa mesmo que a ferramenta exista.
 'use strict';
@@ -21,6 +24,7 @@ const { z } = require('zod');
 const BASE = (process.env.SISTEMALA_URL || 'https://lucroativo.online/api/agentes').replace(/\/+$/, '');
 const CHAVE = process.env.SISTEMALA_API_KEY || '';
 const FINANCEIRO = process.env.SISTEMALA_FINANCEIRO === '1';
+const HISTORICO = process.env.RENE_ACESSO_TOTAL === '1';
 const TIMEOUT_MS = 20000;
 
 async function consultar(caminho, parametros = {}) {
@@ -114,6 +118,16 @@ ferramenta(servidor, 'analises_de_reuniao',
   { q: z.string().optional(), executivo: z.string().optional(),
     desde: z.string().optional().describe('AAAA-MM-DD'), ate: z.string().optional().describe('AAAA-MM-DD'), ...paginacao },
   'reunioes/');
+
+if (HISTORICO) {
+  ferramenta(servidor, 'historico_leads',
+    'Histórico de leads (06/10/2026): diz se uma empresa, pessoa ou contador já passou pela Lucro Ativo, buscando ao mesmo tempo na base antiga (AgendaICMS), no Twenty e no SistemaLA. '
+    + 'Aceita em q: CNPJ (com ou sem máscara; busca pela raiz, matriz e filiais), nome da empresa ou da pessoa (3 letras ou mais), e-mail (busca também o domínio, exceto Gmail, Hotmail e semelhantes), domínio (ex.: vnat.com.br) ou telefone com DDD. '
+    + 'Cada resultado traz data, origem, tipo (Lead, Reunião, Oportunidade), empresa, pessoa, cargo, contato, executivo, situação, produto, valor e achado_por; so_pelo_contato=true quando nada casou pelo CNPJ nem pelo nome da empresa. '
+    + 'Ao checar um contrato ou lead novo, consulte o CNPJ, o nome da empresa e cada e-mail e telefone informados (inclusive do contador). Lead da base antiga vem sem data porque a data original não foi copiada. A data é a da criação do lead ou da oportunidade, ou o horário da reunião; não é a data em que a situação mudou (uma oportunidade criada em 11/09 e hoje "Perdido" não foi perdida em 11/09).',
+    { q: z.string().describe('CNPJ, nome, e-mail, domínio ou telefone com DDD.') },
+    'historico-leads/');
+}
 
 if (FINANCEIRO) {
   ferramenta(servidor, 'listar_faturas',
