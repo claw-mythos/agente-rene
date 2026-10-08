@@ -50,6 +50,10 @@ const RENE_DM_MODEL_ID = 'rene-dm';
 const RENE_ADMIN_MODEL_ID = 'rene-admin';
 const DONO_ACESSO_TOTAL = /^\*\*User:\*\*\s+"Lucas dos Santos"\s*$/m;
 const RENE_DM_MCP_CONFIG = path.join(__dirname, '..', 'claude-mcp-servers-dm.json');
+// Conversa do Dr. Lucas (08/10/2026): MCP do DM mais a memória da equipe
+// (gbrain_equipe). O "gbrain" dele aponta para a memória particular
+// (bin/gbrain-mcp escolhe o banco por RENE_ACESSO_TOTAL).
+const RENE_DONO_MCP_CONFIG = path.join(__dirname, '..', 'claude-mcp-servers-dono.json');
 
 // Diretiva que transforma o Claude Code (agêntico) num assistente de chat direto.
 const CHAT_DIRECTIVE =
@@ -156,7 +160,7 @@ function mount(app) {
       appendSystemPrompt: agentic
         ? appendSystemPrompt
         : [CHAT_DIRECTIVE, appendSystemPrompt].filter(Boolean).join('\n\n'),
-      ...(agenticDm ? { mcpConfigPath: RENE_DM_MCP_CONFIG } : {}),
+      ...(agenticDm ? { mcpConfigPath: acessoTotal ? RENE_DONO_MCP_CONFIG : RENE_DM_MCP_CONFIG } : {}),
       ...(acessoTotal ? { env: { RENE_ACESSO_TOTAL: '1', RENE_SOLICITANTE: 'Lucas dos Santos (perfil admin-full, 109693481525364@lid)' } } : {}),
     };
 

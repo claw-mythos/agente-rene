@@ -46,6 +46,11 @@
         "SISTEMALA_URL": "${SISTEMALA_URL}",
         "SISTEMALA_API_KEY": "${SISTEMALA_API_KEY_DM}"
       }
+    },
+    "gbrain": {
+      "type": "stdio",
+      "command": "/home/hermes/bin/gbrain-mcp",
+      "args": []
     }
   }
 }

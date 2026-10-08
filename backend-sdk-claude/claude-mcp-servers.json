@@ -36,6 +36,11 @@
         "SISTEMALA_API_KEY": "${SISTEMALA_API_KEY}",
         "SISTEMALA_FINANCEIRO": "1"
       }
+    },
+    "gbrain": {
+      "type": "stdio",
+      "command": "/home/hermes/bin/gbrain-mcp",
+      "args": []
     }
   }
 }

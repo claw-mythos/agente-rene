@@ -1,0 +1,61 @@
+{
+  "mcpServers": {
+    "google-workspace": {
+      "type": "stdio",
+      "command": "/home/hermes/.local/share/workspace-mcp-venv/bin/workspace-mcp",
+      "args": [
+        "--single-user"
+      ],
+      "env": {
+        "WORKSPACE_MCP_CREDENTIALS_DIR": "/home/hermes/.config/workspace-mcp/credentials",
+        "GOOGLE_OAUTH_CLIENT_ID": "${GOOGLE_OAUTH_CLIENT_ID}",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "${GOOGLE_OAUTH_CLIENT_SECRET}",
+        "USER_GOOGLE_EMAIL": "lucas@lucasjuridico.com",
+        "OAUTHLIB_INSECURE_TRANSPORT": "1"
+      }
+    },
+    "readai": {
+      "type": "http",
+      "url": "https://api.read.ai/mcp"
+    },
+    "zapsign": {
+      "type": "stdio",
+      "command": "/usr/bin/node",
+      "args": [
+        "/home/hermes/.local/lib/node_modules/mcp-server-zapsign/dist/stdio/main.js"
+      ],
+      "env": {
+        "ZAPSIGN_API_KEY": "${ZAPSIGN_API_KEY_DM}",
+        "ZAPSIGN_BASE_URL": "${ZAPSIGN_BASE_URL_DM}"
+      }
+    },
+    "buffer": {
+      "type": "http",
+      "url": "https://mcp.buffer.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${BUFFER_API_KEY_DM}"
+      }
+    },
+    "sistemala": {
+      "type": "stdio",
+      "command": "/home/hermes/opt/node/bin/node",
+      "args": [
+        "/home/hermes/agente-rene/backend-sdk-claude/services/mcp/sistemala-mcp.js"
+      ],
+      "env": {
+        "SISTEMALA_URL": "${SISTEMALA_URL}",
+        "SISTEMALA_API_KEY": "${SISTEMALA_API_KEY_DM}"
+      }
+    },
+    "gbrain": {
+      "type": "stdio",
+      "command": "/home/hermes/bin/gbrain-mcp",
+      "args": []
+    },
+    "gbrain_equipe": {
+      "type": "stdio",
+      "command": "/home/hermes/bin/gbrain-equipe-mcp",
+      "args": []
+    }
+  }
+}
