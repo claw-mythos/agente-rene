@@ -44,7 +44,8 @@
       ],
       "env": {
         "SISTEMALA_URL": "${SISTEMALA_URL}",
-        "SISTEMALA_API_KEY": "${SISTEMALA_API_KEY_DONO}"
+        "SISTEMALA_API_KEY": "${SISTEMALA_API_KEY_DONO}",
+        "SISTEMALA_FINANCEIRO": "1"
       }
     },
     "gbrain": {
