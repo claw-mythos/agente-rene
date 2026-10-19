@@ -6,12 +6,14 @@
 // Julio em 29/09/2026: só consulta; conversa individual vê o CRM sem
 // financeiro; grupo de fechamento vê também faturas. Exceção de 19/10/2026:
 // na conversa do Dr. Lucas (RENE_ACESSO_TOTAL=1) o René registra e conclui a
-// próxima ação do card, com a chave rene-dono (escopo crm_escrita).
+// próxima ação do card, com a chave rene-dono (escopo crm_escrita). Desde a
+// mesma data a chave rene-dono tem também financeiro_leitura e o dono roda com
+// SISTEMALA_FINANCEIRO=1: o Dr. Lucas vê faturas e pagamentos (Bradesco via SistemaLA).
 //
 // Ambiente:
 //   SISTEMALA_URL         base da API (padrão https://lucroativo.online/api/agentes)
 //   SISTEMALA_API_KEY     chave de API (escopos definidos no SistemaLA)
-//   SISTEMALA_FINANCEIRO  "1" registra a ferramenta de faturas (só no grupo)
+//   SISTEMALA_FINANCEIRO  "1" registra a ferramenta de faturas (grupo e conversa do Dr. Lucas)
 //   RENE_ACESSO_TOTAL     "1" (só na conversa do Dr. Lucas, posto pelo backend)
 //                         registra historico_leads — a tela equivalente no
 //                         SistemaLA é restrita a Dr. Lucas, Julio e Tiago;
@@ -48,12 +50,12 @@ async function consultar(caminho, parametros = {}, corpo = null) {
       signal: controle.signal,
     });
     const texto = await resposta.text();
-    let corpo;
-    try { corpo = JSON.parse(texto); } catch { corpo = { erro: texto.slice(0, 200) }; }
+    let dados;
+    try { dados = JSON.parse(texto); } catch { dados = { erro: texto.slice(0, 200) }; }
     if (!resposta.ok) {
-      throw new Error(`SistemaLA respondeu ${resposta.status}: ${corpo.erro || 'erro'}`);
+      throw new Error(`SistemaLA respondeu ${resposta.status}: ${dados.erro || 'erro'}`);
     }
-    return corpo;
+    return dados;
   } finally {
     clearTimeout(relogio);
   }
