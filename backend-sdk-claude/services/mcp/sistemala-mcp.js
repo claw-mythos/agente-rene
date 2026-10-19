@@ -3,8 +3,10 @@
 //
 // Substitui o Twenty (crm.meulucroativo.seg.br, fora do ar desde 09/2026) pela
 // API de agentes do SistemaLA (lucroativo.online/api/agentes/). Decisões do
-// Julio em 29/09/2026: SÓ CONSULTA (nenhuma ferramenta grava); conversa
-// individual vê o CRM sem financeiro; grupo de fechamento vê também faturas.
+// Julio em 29/09/2026: só consulta; conversa individual vê o CRM sem
+// financeiro; grupo de fechamento vê também faturas. Exceção de 19/10/2026:
+// na conversa do Dr. Lucas (RENE_ACESSO_TOTAL=1) o René registra e conclui a
+// próxima ação do card, com a chave rene-dono (escopo crm_escrita).
 //
 // Ambiente:
 //   SISTEMALA_URL         base da API (padrão https://lucroativo.online/api/agentes)
@@ -12,7 +14,8 @@
 //   SISTEMALA_FINANCEIRO  "1" registra a ferramenta de faturas (só no grupo)
 //   RENE_ACESSO_TOTAL     "1" (só na conversa do Dr. Lucas, posto pelo backend)
 //                         registra historico_leads — a tela equivalente no
-//                         SistemaLA é restrita a Dr. Lucas, Julio e Tiago
+//                         SistemaLA é restrita a Dr. Lucas, Julio e Tiago;
+//                         registra também as ferramentas de próxima ação
 // A permissão real fica no SistemaLA: a chave da conversa individual não tem
 // o escopo financeiro, então a API recusa mesmo que a ferramenta exista.
 'use strict';
@@ -27,7 +30,7 @@ const FINANCEIRO = process.env.SISTEMALA_FINANCEIRO === '1';
 const HISTORICO = process.env.RENE_ACESSO_TOTAL === '1';
 const TIMEOUT_MS = 20000;
 
-async function consultar(caminho, parametros = {}) {
+async function consultar(caminho, parametros = {}, corpo = null) {
   if (!CHAVE) throw new Error('SISTEMALA_API_KEY não configurada.');
   const url = new URL(`${BASE}/${caminho.replace(/^\/+/, '')}`);
   for (const [nome, valor] of Object.entries(parametros)) {
@@ -35,9 +38,13 @@ async function consultar(caminho, parametros = {}) {
   }
   const controle = new AbortController();
   const relogio = setTimeout(() => controle.abort(), TIMEOUT_MS);
+  const cabecalhos = { Authorization: `Api-Key ${CHAVE}`, Accept: 'application/json' };
+  if (corpo) cabecalhos['Content-Type'] = 'application/json';
   try {
     const resposta = await fetch(url, {
-      headers: { Authorization: `Api-Key ${CHAVE}`, Accept: 'application/json' },
+      method: corpo ? 'POST' : 'GET',
+      headers: cabecalhos,
+      body: corpo ? JSON.stringify(corpo) : undefined,
       signal: controle.signal,
     });
     const texto = await resposta.text();
@@ -54,6 +61,17 @@ async function consultar(caminho, parametros = {}) {
 
 function resultado(dados) {
   return { content: [{ type: 'text', text: JSON.stringify(dados, null, 1) }] };
+}
+
+function gravacao(servidor, nome, descricao, esquema, caminho) {
+  servidor.registerTool(nome, { description: descricao, inputSchema: esquema }, async (args) => {
+    try {
+      const { id, ...corpo } = args || {};
+      return resultado(await consultar(caminho(args), {}, corpo));
+    } catch (erro) {
+      return { content: [{ type: 'text', text: `Erro ao gravar no SistemaLA: ${erro.message}` }], isError: true };
+    }
+  });
 }
 
 function ferramenta(servidor, nome, descricao, esquema, caminho) {
@@ -82,7 +100,9 @@ ferramenta(servidor, 'resumo_funil',
   'funil/resumo/');
 
 ferramenta(servidor, 'listar_oportunidades',
-  'Lista oportunidades do Funil Comercial com filtros. Cada item traz empresa (nome, razão social, CNPJ), etapa, produto, valores, dono, SDR, próxima ação e datas.',
+  'Lista oportunidades do Funil Comercial com filtros. Cada item traz empresa (nome, razão social, CNPJ), etapa, situacao (aberta, ganho, perda, noshow), produto, valor estimado e fechado, dono, SDR, '
+  + 'próxima ação (tarefa pendente do card: descrição, data e responsável; acoes_pendentes = quantas), motivo e observação da perda, nota_reuniao (nota da reunião mais recente) e datas. '
+  + 'Para indicadores use "total" da resposta com limite=1 em vez de baixar tudo. Perdidos = situacao perda + noshow; ganho não é perda.',
   { estagio: z.string().optional().describe('Slug da etapa (veja resumo_funil).'),
     produto: z.string().optional(), dono: z.string().optional(),
     empresa_id: z.number().int().optional(),
@@ -90,13 +110,14 @@ ferramenta(servidor, 'listar_oportunidades',
     abertas: z.enum(['1']).optional().describe('"1" = só em andamento.'),
     sem_proxima_acao: z.enum(['1']).optional().describe('"1" = abertas sem próxima ação (follow-up pendente).'),
     acao_vencida: z.enum(['1']).optional().describe('"1" = abertas com próxima ação vencida.'),
+    situacao: z.enum(['aberta', 'ganho', 'perda', 'noshow']).optional().describe('Situação pela etapa do card.'),
     criadas_desde: z.string().optional().describe('AAAA-MM-DD'),
     atualizadas_desde: z.string().optional().describe('AAAA-MM-DD'),
     ...paginacao },
   'oportunidades/');
 
 ferramenta(servidor, 'ver_oportunidade',
-  'Detalhe de uma oportunidade pelo id, com motivo de perda e reuniões comerciais.',
+  'Detalhe de uma oportunidade pelo id: campos da lista, todas as ações pendentes (com id, para concluir) e as reuniões comerciais com as notas.',
   { id: z.number().int() }, (a) => `oportunidades/${a.id}/`);
 
 ferramenta(servidor, 'buscar_empresas',
@@ -127,6 +148,24 @@ if (HISTORICO) {
     + 'Ao checar um contrato ou lead novo, consulte o CNPJ, o nome da empresa e cada e-mail e telefone informados (inclusive do contador). Lead da base antiga vem sem data porque a data original não foi copiada. A data é a da criação do lead ou da oportunidade, ou o horário da reunião; não é a data em que a situação mudou (uma oportunidade criada em 11/09 e hoje "Perdido" não foi perdida em 11/09).',
     { q: z.string().describe('CNPJ, nome, e-mail, domínio ou telefone com DDD.') },
     'historico-leads/');
+}
+
+if (HISTORICO) {
+  gravacao(servidor, 'registrar_proxima_acao',
+    'Registra a próxima ação de uma oportunidade (só a pedido do Dr. Lucas). Vira tarefa no card do CRM, com o executivo do funil como responsável, salvo se "responsavel" for informado. '
+    + 'Pedido repetido (mesma descrição e data) não duplica. Criar ou mover card não existe pela API: isso é feito no CRM. Confirme ao Dr. Lucas o que foi gravado.',
+    { id: z.number().int().describe('Id da oportunidade.'),
+      descricao: z.string().min(1).max(2000),
+      data: z.string().describe('AAAA-MM-DD'),
+      hora: z.string().optional().describe('HH:MM'),
+      tipo: z.enum(['follow', 'ligacao', 'mensagem', 'outro']).optional().describe('Padrão follow.'),
+      responsavel: z.string().optional().describe('Usuário do SistemaLA responsável (padrão: executivo do funil).') },
+    (a) => `oportunidades/${a.id}/proxima-acao/`);
+
+  gravacao(servidor, 'concluir_acao',
+    'Marca como concluída uma ação pendente do card (id da ação, visto em ver_oportunidade). Só a pedido do Dr. Lucas.',
+    { id: z.number().int().describe('Id da ação.') },
+    (a) => `acoes/${a.id}/concluir/`);
 }
 
 if (FINANCEIRO) {
