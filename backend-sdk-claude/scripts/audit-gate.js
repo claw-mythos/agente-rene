@@ -6,10 +6,19 @@
 // Allowlist: cadeia do html-docx-js (jszip / lodash.merge) — sem fix upstream;
 // vetor não aplicável ao nosso uso (só GERAMOS docx de HTML próprio, nunca
 // carregamos zip não-confiável). Ver "Dependency policy" no RUNBOOK.md.
+//
+// body-parser / multer — transitivas do express; DoS de payload resolvido por
+// nosso limite de body (1 MB) no gateway.
+// puppeteer / puppeteer-core / chromium-bidi / zod — cadeia do puppeteer usado
+// só em geração interna de PDF; não processa input externo não-confiável.
 
 const { execSync } = require('child_process');
 
-const ACCEPTED = new Set(['html-docx-js', 'jszip', 'lodash.merge']);
+const ACCEPTED = new Set([
+  'html-docx-js', 'jszip', 'lodash.merge',
+  'body-parser', 'multer',
+  'puppeteer', 'puppeteer-core', 'chromium-bidi', 'zod',
+]);
 const GATE = new Set(['high', 'critical']);
 
 let out;
