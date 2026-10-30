@@ -1,0 +1,15 @@
+{
+  "_leia": "Roteador Jev da ponte do René (29/10/2026). O Jev classifica cada pedido em leve, media ou pesada; cada nível diz o motor (openai = assinatura do ChatGPT pelo Hermes; claude = Claude Code pela ponte, com as ferramentas do René), o modelo (vazio = padrão do settings.json), o teto de turnos, quantas mensagens do histórico vão junto e quantas tentativas. Editar aqui e reiniciar o backend (pm2 restart hermes-mythos-lucas). ROTEADOR_ATIVO=0 no .env desliga tudo e volta ao comportamento antigo.",
+  "ativo": true,
+  "finalidade": "roteamento-rene",
+  "decisoes_url": "https://lucroativo.online/api/agentes/decidir/",
+  "tempo_limite_jev_ms": 15000,
+  "limiar_ferramentas": 0.5,
+  "confianca_minima": 0.55,
+  "niveis": {
+    "leve":   { "motor": "openai", "modelo": "gpt-5.6-sol", "historico": 16, "tentativas": 1,
+                "reserva": { "motor": "claude", "modelo": "haiku", "max_turns": 4 } },
+    "media":  { "motor": "claude", "modelo": "sonnet", "max_turns": 20, "historico": 60, "tentativas": 2 },
+    "pesada": { "motor": "claude", "modelo": "", "max_turns": 30, "historico": 300, "tentativas": 3 }
+  }
+}

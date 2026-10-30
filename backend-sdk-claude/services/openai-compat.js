@@ -19,6 +19,7 @@ const fs = require('fs');
 const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../claude-query');
+const roteador = require('./roteador-jev');  // Jev decide o peso de cada pedido (29/10/2026)
 
 const MODEL_ID = 'claudecode';
 
@@ -128,7 +129,7 @@ function mount(app) {
 
     const body = req.body || {};
     const stream = body.stream === true;
-    const { appendSystemPrompt, prompt } = _flattenMessages(body.messages);
+    let { appendSystemPrompt, prompt } = _flattenMessages(body.messages);
     if (!prompt) {
       return res.status(400).json({ error: { message: 'messages: pelo menos uma mensagem user/assistant com conteúdo', type: 'invalid_request_error' } });
     }
@@ -164,6 +165,33 @@ function mount(app) {
       ...(acessoTotal ? { env: { RENE_ACESSO_TOTAL: '1', RENE_SOLICITANTE: 'Lucas dos Santos (perfil admin-full, 109693481525364@lid)' } } : {}),
     };
 
+    // ── Roteador Jev (29/10/2026): só nos perfis agênticos (rene, rene-dm, rene-admin).
+    // leve → OpenAI pelo Hermes (reserva: Claude em modelo leve); media → Sonnet;
+    // pesada → modelo padrão. Cada nível poda o histórico e limita turnos e tentativas.
+    let rota = null;
+    let textoOpenAI = '';
+    let tentativasRota = null;
+    if (agentic && roteador.ativo()) {
+      rota = await roteador.classificar({ mensagens: body.messages, modelo: reqModel });
+      const cfgRota = rota.cfg || {};
+      const podadas = roteador.podarHistorico(body.messages, cfgRota.historico);
+      if (podadas !== body.messages) {
+        const achatado = _flattenMessages(podadas);
+        if (achatado.prompt) { prompt = achatado.prompt; appendSystemPrompt = achatado.appendSystemPrompt; options.appendSystemPrompt = appendSystemPrompt; }
+      }
+      if (cfgRota.tentativas) tentativasRota = cfgRota.tentativas;
+      let nivelCfg = cfgRota;
+      if (cfgRota.motor === 'openai') {
+        textoOpenAI = await roteador.responderOpenAI({ mensagens: podadas, modelo: cfgRota.modelo });
+        if (!textoOpenAI) nivelCfg = cfgRota.reserva || {};   // OpenAI falhou: reserva no Claude
+      }
+      if (!textoOpenAI) {
+        if (nivelCfg.modelo) options.model = nivelCfg.modelo;
+        if (nivelCfg.max_turns) options.maxTurns = nivelCfg.max_turns;
+      }
+      console.log(`[roteador] nivel=${rota.nivel} motor=${textoOpenAI ? 'openai' : 'claude'} modelo=${textoOpenAI ? cfgRota.modelo : (options.model || 'padrao')} turnos=${options.maxTurns} historico=${Array.isArray(podadas) ? podadas.length : '?'} (${rota.motivo})`);
+    }
+
     // DEBUG (CLAUDECODE_DEBUG=1): dump do prompt/options pra diagnosticar exit 1.
     if (process.env.CLAUDECODE_DEBUG === '1') {
       try {
@@ -178,11 +206,11 @@ function mount(app) {
     // exit 1 SEM texto por rate-limit transitório — repetir resolve (é o que o
     // "regenerate" manual faz). Só falha de vez se todas as tentativas vierem vazias.
     // Se veio texto, um exit != 0 posterior (rate_limit_event/cleanup) é ignorado.
-    const MAX_ATTEMPTS = Math.max(1, parseInt(process.env.CLAUDECODE_RETRIES || '3'));
-    let text = '';
+    const MAX_ATTEMPTS = Math.max(1, tentativasRota || parseInt(process.env.CLAUDECODE_RETRIES || '3'));
+    let text = textoOpenAI;
     let usage = null;
     let errored = null;
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS && !textoOpenAI; attempt++) {
       text = ''; usage = null; errored = null;
       try {
         for await (const m of query({ prompt, options })) {
