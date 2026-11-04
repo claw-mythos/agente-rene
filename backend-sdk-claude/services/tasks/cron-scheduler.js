@@ -9,6 +9,29 @@ const { v4: uuidv4 } = require('uuid');
 
 const CRON_FILE = path.join(__dirname, '..', '..', 'data', 'cron.json');
 
+// Contexto temporal injetado em todo disparo (03/11/2026). Sem ele o modelo deduzia
+// data e período do dia a partir dos arquivos e memórias que lia e saudou o Lucas com
+// "Boa noite ... Domingo" às 9h de uma terça-feira (um dia atrasado em quase todas as
+// 75 execuções da rotina diária).
+function contextoTemporal(agora = new Date(), tz = process.env.TZ || 'America/Sao_Paulo') {
+  const partes = Object.fromEntries(new Intl.DateTimeFormat('pt-BR', {
+    timeZone: tz, weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(agora).map(p => [p.type, p.value]));
+  const hora = parseInt(partes.hour, 10);
+  const periodo = hora < 12 ? 'manhã (saudação: bom dia)'
+    : hora < 18 ? 'tarde (saudação: boa tarde)'
+    : 'noite (saudação: boa noite)';
+  return `[Contexto temporal] Agora é ${partes.weekday}, ${partes.day}/${partes.month}/${partes.year}, ${partes.hour}:${partes.minute} no horário de Brasília — período da ${periodo}. Use exatamente esta data, este dia da semana e este período em qualquer saudação ou referência temporal; não deduza a data a partir de arquivos, memórias ou conversas anteriores.`;
+}
+
+// Prompt que vai para a tarefa: contexto temporal antes do texto do cron. Se o prompt
+// é um comando de skill ("/nome"), o contexto vai depois, para o expandSkill reconhecê-lo.
+function montarPrompt(prompt, agora) {
+  const ctx = contextoTemporal(agora);
+  return String(prompt || '').trim().startsWith('/') ? `${prompt}\n\n${ctx}` : `${ctx}\n\n${prompt}`;
+}
+
 let _taskRunner = null;
 let _io = null;
 const _scheduled = new Map(); // id → { task: cron.ScheduledTask, def: {...} }
@@ -105,7 +128,7 @@ function _activate(def) {
     _persistDef(def);
     console.log(`⏰ cron disparou: ${def.id} (${def.expression}) — "${def.prompt.slice(0, 60)}"`);
     _taskRunner.createTask({
-      prompt: def.prompt,
+      prompt: montarPrompt(def.prompt),
       source: def.source || 'cron',
       tags: [...(def.tags || []), `cron:${def.id}`],
       maxTurns: 10,
@@ -150,4 +173,4 @@ function start({ taskRunner, io }) {
   console.log(`⏰ Cron scheduler: ${_scheduled.size} jobs ativos`);
 }
 
-module.exports = { start, add, list, remove, parseNaturalSchedule };
+module.exports = { start, add, list, remove, parseNaturalSchedule, contextoTemporal, montarPrompt };
