@@ -1,37 +1,39 @@
-const http = require('http');
+// whatsapp-sender.js — envio de WhatsApp usado pelas automações agendadas
+// (briefing pré-reunião, relatório semanal, lembrete de follow-up).
+//
+// Histórico: antes chamava POST /api/whatsapp/say deste próprio backend
+// (hermes-mythos-lucas, porta 8080), que depende do socket Baileys próprio
+// em data/whatsapp-auth/. Essa sessão foi deslogada em 2026-11-03 (code=401)
+// e não é mais a conexão de produção — o número real hoje é o do
+// hermes-gateway (uazapi-bridge). Resultado: todo envio falhava com
+// "canal WhatsApp ainda não conectado" (incidente TARS
+// 2026-11-09-1030-rene_envios_backend).
+//
+// Conserto (09/11/2026, TARS): enviar via `hermes send` (hermes-gateway),
+// o mesmo caminho já usado por data/hooks/rotina-lucas.js. Sem LLM, sem
+// agent loop — só reaproveita as credenciais do gateway já configurado.
+//
+// Backup do arquivo anterior: whatsapp-sender.js.bak-20261109-tars.
 
-const API_PORT = process.env.PORT || '8080';
-const API_TOKEN = process.env.API_BEARER_SECRET || '';
+const { spawn } = require('child_process');
+
+const HERMES_BIN = process.env.HERMES_SEND_BIN || '/home/hermes/.local/bin/hermes';
 
 function send(jid, text) {
   return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({ jid, text });
-    const req = http.request({
-      hostname: '127.0.0.1',
-      port: parseInt(API_PORT),
-      path: '/api/whatsapp/say',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_TOKEN}`,
-        'Content-Length': Buffer.byteLength(payload),
-      },
-      timeout: 15000,
-    }, (res) => {
-      let body = '';
-      res.on('data', (c) => { body += c; });
-      res.on('end', () => {
-        if (res.statusCode >= 400) {
-          reject(new Error(`WhatsApp ${res.statusCode}: ${body}`));
-        } else {
-          resolve(JSON.parse(body));
-        }
-      });
+    const target = `whatsapp:${jid}`;
+    const proc = spawn(HERMES_BIN, ['send', '--to', target, '--file', '-', '--quiet'], {
+      stdio: ['pipe', 'ignore', 'pipe'],
     });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('WhatsApp send timeout')); });
-    req.write(payload);
-    req.end();
+    let stderr = '';
+    proc.stderr.on('data', (d) => { stderr += d; });
+    proc.on('error', reject);
+    proc.on('close', (code) => {
+      if (code === 0) resolve({ ok: true });
+      else reject(new Error(stderr.trim() || `hermes send saiu com código ${code}`));
+    });
+    proc.stdin.write(text);
+    proc.stdin.end();
   });
 }
 
